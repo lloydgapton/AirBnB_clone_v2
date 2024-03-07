@@ -1,20 +1,30 @@
 #!/usr/bin/python3
-'''Fabric script'''
-
+""" distributes an archive to a web server """
 from fabric.api import *
-from datetime import datetime
+from fabric.operations import run, put, sudo
+import os.path
+
+env.hosts = ['35.237.62.23', '35.227.78.73']
+env.user = 'ubuntu'
 
 
-def do_pack():
-    '''do pack module'''
+def do_deploy(archive_path):
+    """ distributes an archive to a web server """
+    if (os.path.exists(archive_path) is False):
+        return False
 
-    file_name = "web_static_" + \
-        datetime.now().strftime("%Y%m%d%H%M%S") + ".tgz"
-    save_dir = "versions/"
+    try:
+        i = archive_path.split("/")[-1]
+        j = ("/data/web_static/releases/" + i.split(".")[0])
 
-    local("mkdir -p " + save_dir)
-    chk = local("tar -cvzf {}{} web_static".format(save_dir, file_name))
-    if chk.succeeded:
-        return (save_dir + file_name)
-    else:
-        return (None)
+        put(archive_path, "/tmp/")
+        run("sudo mkdir -p {}".format(j))
+        run("sudo tar -xzf /tmp/{} -C {}".format(i, j))
+        run("sudo rm /tmp/{}".format(i))
+        run("sudo mv {}/web_static/* {}/".format(j, j))
+        run("sudo rm -rf {}/web_static".format(j))
+        run('sudo rm -rf /data/web_static/current')
+        run("sudo ln -s {} /data/web_static/current".format(j))
+        return True
+    except Exception:
+        return False
